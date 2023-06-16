@@ -9,7 +9,7 @@ const GAUGE_ADDRESS = "0xDE37F8a48C41F6C1A92Ac6792927F5151C7C4ba2";
 const RPC_URL = "https://mainnet.aurora.dev";
 
 // const START_BLOCK = 94577299;
-const START_BLOCK = 80000000;
+const START_BLOCK = 94200000;
 
 const SUBGRAPH_URL =
   "https://api.thegraph.com/subgraphs/name/kyzooghost/balancer_aurora_fork";
@@ -32,6 +32,7 @@ const queryJoinExits = gql`
 exports.handler = async (event) => {
   const address = event.queryStringParameters.address; // Address is now provided by the event object.
   try {
+    let coingeckoApiFetchSuccess = true;
     const ethPriceHistory = await axios
       .get(
         "https://api.coingecko.com/api/v3/coins/ethereum/ohlc?vs_currency=usd&days=max"
@@ -39,12 +40,16 @@ exports.handler = async (event) => {
       .then((res) => res.data)
       .catch((err) => {
         console.error(err);
+        coingeckoApiFetchSuccess = false;
         return [];
       });
     const provider = new ethers.JsonRpcProvider(RPC_URL);
     const START_TIMESTAMP = await provider
       .getBlock(START_BLOCK)
       .then((block) => block.timestamp);
+
+    let isTimestampGood = START_TIMESTAMP * 1000 <= Date.now();
+
     const gaugeContractForPool = new ethers.Contract(
       GAUGE_ADDRESS,
       liquidityGaugeAbi,
@@ -141,12 +146,28 @@ exports.handler = async (event) => {
     const hasStakedPoolTokens =
       doesUserHavePoolTokensStaked || stakingEventsAfterTimestamp.length > 0;
 
+    let message = "";
+    if (!coingeckoApiFetchSuccess) {
+      message = "Coingecko API fetch failed";
+    } else if (!isTimestampGood) {
+      message = "Start block is in the future";
+    } else if (!investmentThresholdSatisfied) {
+      message =
+        "Did not invest over 0.05 ETH, only invested " +
+        amountOfEthInvested +
+        " ETH";
+    } else if (!hasStakedPoolTokens) {
+      message = "Never staked before or no pool tokens staked";
+    } else {
+      message = "Task completed";
+    }
+
     return {
       statusCode: 200,
       body: JSON.stringify({
         error: {
           code: 0,
-          message: "",
+          message: message,
         },
         data: {
           result: investmentThresholdSatisfied && hasStakedPoolTokens,
@@ -170,6 +191,8 @@ exports.handler = async (event) => {
 };
 
 // exports.modules = async (address) => {
+//   let coingeckoApiFetchSuccess = true;
+
 //   const ethPriceHistory = await axios
 //     .get(
 //       "https://api.coingecko.com/api/v3/coins/ethereum/ohlc?vs_currency=usd&days=max"
@@ -177,12 +200,16 @@ exports.handler = async (event) => {
 //     .then((res) => res.data)
 //     .catch((err) => {
 //       console.error(err);
+//       coingeckoApiFetchSuccess = false;
 //       return [];
 //     });
 //   const provider = new ethers.JsonRpcProvider(RPC_URL);
 //   const START_TIMESTAMP = await provider
 //     .getBlock(START_BLOCK)
 //     .then((block) => block.timestamp);
+
+//   let isTimestampGood = START_TIMESTAMP * 1000 <= Date.now();
+
 //   const gaugeContractForPool = new ethers.Contract(
 //     GAUGE_ADDRESS,
 //     liquidityGaugeAbi,
@@ -269,6 +296,22 @@ exports.handler = async (event) => {
 //   const doesUserHavePoolTokensStaked = userStakedBalance > BigInt(0);
 //   const hasStakedPoolTokens =
 //     doesUserHavePoolTokensStaked || stakingEventsAfterTimestamp.length > 0;
+
+//   let message = "";
+//   if (!coingeckoApiFetchSuccess) {
+//     message = "Coingecko API fetch failed";
+//   } else if (!isTimestampGood) {
+//     message = "Start block is in the future";
+//   } else if (!investmentThresholdSatisfied) {
+//     message =
+//       "Investment amount not satisfied, only invested " +
+//       amountOfEthInvested +
+//       " ETH";
+//   } else if (!hasStakedPoolTokens) {
+//     message = "Never staked before or no pool tokens staked";
+//   } else {
+//     message = "Task completed";
+//   }
 
 //   return investmentThresholdSatisfied && hasStakedPoolTokens;
 // };

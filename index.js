@@ -151,15 +151,26 @@ exports.handler = async (event) => {
       message = "Coingecko API fetch failed";
     } else if (!isTimestampGood) {
       message = "Start block is in the future";
-    } else if (!investmentThresholdSatisfied) {
-      message =
-        "Did not invest over 0.05 ETH, only invested " +
-        amountOfEthInvested +
-        " ETH";
-    } else if (!hasStakedPoolTokens) {
-      message = "Never staked before or no pool tokens staked";
+    } else if (!investmentThresholdSatisfied || !hasStakedPoolTokens) {
+      if (!investmentThresholdSatisfied && hasStakedPoolTokens) {
+        message =
+          "Did not invest over 0.05 ETH, only invested " +
+          amountOfEthInvested +
+          " ETH, but did stake pool tokens";
+      } else if (investmentThresholdSatisfied && !hasStakedPoolTokens) {
+        message =
+          "Did invest over 0.05 ETH, invested " +
+          amountOfEthInvested +
+          " ETH, but did not stake pool tokens";
+      } else {
+        message =
+          "Did not invest over 0.05 ETH, only invested " +
+          amountOfEthInvested +
+          " ETH, and did not stake pool tokens";
+      }
     } else {
-      message = "Task completed";
+      message =
+        "Task completed, invested " + amountOfEthInvested + " ETH, and staked";
     }
 
     return {
@@ -302,15 +313,26 @@ exports.handler = async (event) => {
 //     message = "Coingecko API fetch failed";
 //   } else if (!isTimestampGood) {
 //     message = "Start block is in the future";
-//   } else if (!investmentThresholdSatisfied) {
-//     message =
-//       "Investment amount not satisfied, only invested " +
-//       amountOfEthInvested +
-//       " ETH";
-//   } else if (!hasStakedPoolTokens) {
-//     message = "Never staked before or no pool tokens staked";
+//   } else if (!investmentThresholdSatisfied || !hasStakedPoolTokens) {
+//     if (!investmentThresholdSatisfied && hasStakedPoolTokens) {
+//       message =
+//         "Did not invest over 0.05 ETH, only invested " +
+//         amountOfEthInvested +
+//         " ETH, but did stake pool tokens";
+//     } else if (investmentThresholdSatisfied && !hasStakedPoolTokens) {
+//       message =
+//         "Did invest over 0.05 ETH, invested " +
+//         amountOfEthInvested +
+//         " ETH, but did not stake pool tokens";
+//     } else {
+//       message =
+//         "Did not invest over 0.05 ETH, only invested " +
+//         amountOfEthInvested +
+//         " ETH, and did not stake pool tokens";
+//     }
 //   } else {
-//     message = "Task completed";
+//     message =
+//       "Task completed, invested " + amountOfEthInvested + " ETH, and staked";
 //   }
 
 //   return investmentThresholdSatisfied && hasStakedPoolTokens;
